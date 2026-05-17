@@ -24,8 +24,8 @@
 
 ---
 
-> **Current Status:** Phase 2 complete. Private chat only.
-> Group chat, real-time delivery, presence, and search are planned in subsequent phases.
+**Current Status:** Phase 2 complete. Private chat only.
+Group chat, real-time delivery, presence, and search are planned in subsequent phases.
 
 
 ## Module Overview
