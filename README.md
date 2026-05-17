@@ -384,6 +384,10 @@ DTO mapping, message fetching, and lifecycle message fetching are extracted into
 
 - **Chat versioning problem** — The core challenge this entire lifecycle architecture exists to solve. In naive chat systems, there is no concept of conversation versions. A user who deletes and rejoins sees all historical messages with no way to gate visibility. There is no record of the gap. Time-travel is impossible because there is no temporal record of participation. This was solved by introducing `ConversationLifecycle` and `ParticipantLifecycle` as first-class entities — making participation a time-windowed record rather than a boolean membership flag. Every other feature in this module flows from this single architectural decision.
 
+- **Time-jumping conversation lifecycle vs user presence window** — Multiple `ConversationLifecycle` can exist for the same pair key across years, but user participation is not continuous. Early logic checked only `conversationId`, causing old messages to leak into restored chats and breaking visibility rules. This was fixed by making `ParticipantLifecycle (joinedAt → leftAt)` the sole authority for message visibility, turning it into the temporal gatekeeper for queries, receipts, restore logic, and chat list construction. This separation clearly distinguishes conversation existence from user presence within that conversation over time.
+
+- **Lazy private conversation creation caused duplicate threads** — Using a missing conversationId from the client as a signal to create a chat led to multiple conversations for the same user pair due to race conditions and retries. The solution was to always resolve by pair key on the server at message-send time, creating a conversation only if none exists. This centralized responsibility, enforced the `(type, pair_key)` uniqueness rule, prevented fragmented histories, and ensured all lifecycles and message visibility map back to a single, consistent conversation timeline.
+
 *(More problems will be documented as the system evolves)*
 
 ---
