@@ -388,6 +388,14 @@ DTO mapping, message fetching, and lifecycle message fetching are extracted into
 
 - **Lazy private conversation creation caused duplicate threads** — Using a missing conversationId from the client as a signal to create a chat led to multiple conversations for the same user pair due to race conditions and retries. The solution was to always resolve by pair key on the server at message-send time, creating a conversation only if none exists. This centralized responsibility, enforced the `(type, pair_key)` uniqueness rule, prevented fragmented histories, and ensured all lifecycles and message visibility map back to a single, consistent conversation timeline.
 
+- **How are idempotent and failure-safe database operations ensured in complex chat flows?** — By wrapping critical service methods in `@Transactional` boundaries and guarding them with structured try–catch logging, operations like lifecycle updates, message receipts, and restore actions become atomic, retry-safe, and consistent even if partial failures occur.
+
+- **How is pagination handled without breaking lifecycle-based visibility rules?** — The chat first loads a fixed batch of recent messages within the user’s active `ParticipantLifecycle` window. The topmost message’s `id` becomes the `offsetId`, and subsequent fetches iteratively load older messages above this id, always constrained by the same lifecycle time window. This ensures infinite scroll pagination never leaks messages from periods when the user was not part of the conversation.
+
+- **How is chat restore safely offered without misidentifying active chats?** — The server does not try to detect whether a chat is “new”. Instead, it relies on a stronger guarantee: if an active `ParticipantLifecycle` existed, the chat would already appear in the user’s chat list. When opening a chat from search, the system only checks for the latest closed `ParticipantLifecycle` for that pair. If found, a restore option is shown. Restoring simply flips `leftAt → null` on that lifecycle, reactivating the exact previous participation window without recreating history or breaking temporal visibility rules.
+
+- **How is the chat list accurately built without leaking inactive or historical conversations?** — The chat list is constructed only from conversations where the user has an active `ParticipantLifecycle`. For private chats, entries are sorted in descending order of `lastMessageAt` from the `Conversation` entity. The display name is derived from the receiver’s `username`, and the backend sends `conversationId`, `receiverId`, and `lastMessageAt` to the frontend. This ensures the list reflects only currently active participations while still preserving historical data separately through lifecycles.
+
 *(More problems will be documented as the system evolves)*
 
 ---
